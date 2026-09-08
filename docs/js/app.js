@@ -328,8 +328,17 @@ async function deleteEntry() {
  */
 function parseIncoming() {
   const hash = location.hash.replace(/^#/, '');
-  if (!hash.startsWith('add')) return null;
-  const params = new URLSearchParams(hash.slice(hash.indexOf('?') + 1));
+  let params;
+  if (hash.startsWith('add')) {
+    params = new URLSearchParams(hash.slice(hash.indexOf('?') + 1));
+  } else {
+    // Repli : certains clients (Raccourcis iOS selon les versions) refusent
+    // ou perdent le fragment. La query string est acceptée, au prix d'une
+    // trace côté serveur — voir guide/SECURITE.md.
+    const search = new URLSearchParams(location.search);
+    if (!search.has('amount') && !search.has('d')) return null;
+    params = search;
+  }
 
   let raw = { amount: params.get('amount'), note: params.get('note'), date: params.get('date') };
   const packed = params.get('d');
@@ -348,7 +357,7 @@ function parseIncoming() {
 async function handleIncoming() {
   const incoming = parseIncoming();
   if (!incoming) return;
-  history.replaceState(null, '', location.pathname + location.search);
+  history.replaceState(null, '', location.pathname);
 
   const dlg = $('sheet-incoming');
   $('in-amount').textContent = money.format(incoming.amount);
@@ -431,6 +440,7 @@ function bindControls() {
       range = btn.dataset.range;
       document.querySelectorAll('#segmented button').forEach((b) => b.classList.toggle('on', b === btn));
       $('custom-range').hidden = true;
+      $('toggle-custom').classList.remove('on');
       render();
     });
   });
@@ -438,7 +448,11 @@ function bindControls() {
   $('toggle-custom').addEventListener('click', () => {
     const box = $('custom-range');
     box.hidden = !box.hidden;
-    if (!box.hidden) {
+    $('toggle-custom').classList.toggle('on', !box.hidden);
+    if (box.hidden) {
+      range = 'month';
+      document.querySelectorAll('#segmented button').forEach((b) => b.classList.toggle('on', b.dataset.range === 'month'));
+    } else {
       range = 'custom';
       document.querySelectorAll('#segmented button').forEach((b) => b.classList.remove('on'));
       if (!$('q-from').value) {

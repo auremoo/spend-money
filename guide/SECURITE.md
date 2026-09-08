@@ -20,6 +20,14 @@ logs de GitHub, ni dans un éventuel proxy, ni dans un en-tête `Referer`
 Chiffrer le contenu de l'URL par-dessus ça n'apporterait rien contre
 l'interception réseau : il n'y a rien à intercepter.
 
+**Exception : le repli en query string.** Si Raccourcis refuse le
+fragment, l'app accepte aussi `?amount=…` (voir `RACCOURCI-IOS.md`). Cette
+forme-là **est** transmise au serveur : le montant et la description
+apparaissent dans le chemin de la requête, donc potentiellement dans les
+journaux d'accès de GitHub. TLS protège toujours contre l'observateur
+réseau, mais GitHub, lui, les voit. N'utilise ce repli que si le `#`
+échoue.
+
 ## 2. Ce qui reste exposé (et que le chiffrement d'URL ne corrigerait qu'à moitié)
 
 | Exposition | Réel ? | Remède |

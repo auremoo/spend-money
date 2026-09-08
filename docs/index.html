@@ -62,10 +62,13 @@
         <button type="button" data-range="all">Tout</button>
       </div>
 
-      <button id="toggle-custom" class="linkish" type="button">Période personnalisée</button>
+      <button id="toggle-custom" class="linkish" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3.5v3M16 3.5v3"/></svg>
+        <span>Période personnalisée</span>
+      </button>
       <div id="custom-range" class="custom-range" hidden>
-        <label>Du<input id="q-from" type="date"></label>
-        <label>Au<input id="q-to" type="date"></label>
+        <label><span>Du</span><input id="q-from" type="date"></label>
+        <label><span>Au</span><input id="q-to" type="date"></label>
       </div>
     </div>
 

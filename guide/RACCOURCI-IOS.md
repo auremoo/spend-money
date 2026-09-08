@@ -6,6 +6,13 @@
 https://<owner>.github.io/spend-money/#add?amount=12.34&note=Boulangerie&date=2026-09-08
 ```
 
+Une forme de repli sans `#` est acceptée, si Raccourcis bute sur le
+fragment (voir plus bas) :
+
+```
+https://<owner>.github.io/spend-money/?amount=12.34&note=Boulangerie&date=2026-09-08
+```
+
 - `amount` — **obligatoire**, décimal, point ou virgule acceptés.
 - `note` — optionnel, la description (encodée URL).
 - `date` — optionnel, `AAAA-MM-JJ`. Absent → date du jour à la réception.
@@ -25,32 +32,77 @@ jamais envoyé au serveur (voir `SECURITE.md`).
 
 ---
 
-## Variante A — la plus simple et la plus fiable (recommandée pour démarrer)
+## Variante A — la plus simple et la plus fiable (recommandée)
 
 Un raccourci manuel, déclenché depuis le widget ou l'écran d'accueil.
 
 1. App **Raccourcis** → **+** → nommer `Dépense`.
-2. Ajouter l'action **Demander une entrée**
+
+2. Action **« Demander une entrée »**
    - Type : **Nombre**
    - Question : `Montant payé ?`
-3. Ajouter l'action **Ouvrir des URL** avec :
+
+3. Action **« URL »** (catégorie Web/Safari) — **ne saute pas cette étape**,
+   voir le piège RTF plus bas. Contenu du champ :
    ```
    https://auremoo.github.io/spend-money/#add?amount=[Entrée fournie]
    ```
-   (`[Entrée fournie]` = la variable magique de l'étape 2, à insérer, pas à
-   taper.)
-4. **Ajouter à l'écran d'accueil.**
+   `[Entrée fournie]` est la variable magique de l'étape 2, à **insérer**
+   depuis la barre au-dessus du clavier, pas à taper.
 
-La description, tu la saisis dans la fenêtre que l'app affiche à
-l'ouverture — c'est exactement le « popup » que tu voulais, et il vaut
-mieux qu'il soit dans l'app : tu vois le montant en grand, tu peux corriger
-la date, et si tu annules rien n'est écrit.
+4. Action **« Ouvrir des URL »**, en entrée l'**URL** de l'étape 3.
 
-Si tu préfères vraiment saisir la description dans Shortcuts : ajoute une
-seconde action **Demander une entrée** (Type : Texte, Question :
-`C'était quoi ?`) et construis l'URL avec
-`#add?amount=[Nombre]&note=[Texte]`. Insère au préalable une action
-**Encodage d'URL** sur le texte, sinon un `&` ou un espace casse l'URL.
+5. Flèche **⌄** à côté du nom → **Partager** → **Sur l'écran d'accueil**.
+
+Résultat :
+
+```
+Demander     Nombre  « Montant payé ? »
+URL          https://auremoo.github.io/spend-money/#add?amount=[Entrée fournie]
+Ouvrir       [URL]
+```
+
+La description se saisit dans la feuille qu'affiche l'app à l'ouverture.
+C'est volontaire : tu vois le montant en grand, tu peux corriger la date,
+et si tu annules rien n'est écrit.
+
+---
+
+## Les deux erreurs que Raccourcis renvoie, et leur cause
+
+### « Impossible de convertir Texte enrichi (RTF) en URL »
+
+Raccourcis a traité ton adresse comme du **texte enrichi** et refuse de la
+convertir. C'est le cas dès que le champ URL est alimenté par un texte
+plutôt que par une valeur typée URL.
+
+**Remède :** insérer une action **« URL »** entre la saisie et
+« Ouvrir des URL » (étape 3 ci-dessus). Sa sortie est typée URL, la
+conversion n'a plus lieu d'être.
+
+Si l'erreur persiste, deuxième piste : le `#`. Certaines versions de
+Raccourcis le digèrent mal. L'app accepte alors la **query string** :
+
+```
+https://auremoo.github.io/spend-money/?amount=[Entrée fournie]&note=
+```
+
+⚠️ Ce repli fonctionne, mais il perd l'avantage du fragment : la query
+string **est envoyée au serveur** (voir `SECURITE.md`). Utilise-le
+seulement si le `#` échoue. L'app efface l'adresse de la barre dans les
+deux cas.
+
+### « Le PDF est corrompu / n'a pas pu être lu »
+
+Tu as utilisé **« Obtenir le contenu de l'URL »** (*Get Contents of URL*),
+qui télécharge la page, puis Raccourcis a tenté d'en faire un aperçu.
+
+**Remède :** cette action n'a rien à faire ici. Il faut **« Ouvrir des
+URL »** (icône Safari, ne renvoie rien). Supprime aussi toute action
+« Aperçu rapide » ou « Afficher le résultat ».
+
+Cherche `Ouvrir` dans les actions, pas `URL` : la première proposition
+sur `URL` est justement la mauvaise.
 
 ---
 
