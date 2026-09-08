@@ -1,16 +1,16 @@
 {
   "app": "spend-money",
   "version": 1,
-  "updatedAt": "2026-09-08T13:31:03.723Z",
+  "updatedAt": "2026-09-08T13:31:11.294Z",
   "encrypted": true,
   "envelope": {
     "alg": "AES-GCM-256",
     "kdf": {
       "name": "PBKDF2-SHA256",
       "iterations": 250000,
-      "salt": "eLYjQDtMDqsmNkq6ZRV2/A=="
+      "salt": "0MLVtWvtyF/ywu2KueVPUw=="
     },
-    "iv": "ItjU6q8oBlAQmR7/",
-    "ciphertext": "Yn3S3mb+QnB6RjnJE8014EzorD+OV2PsrdtBoDz/oi4dxL6MkBZqsK5VOIZBiSBbwL2N+pc5xBmwAioCikg24k5we0Z/JqSJY2yqrL7qz9ybjQC5qhugFU/1P5N95FC6ZRHNSbxr0arX6TPJzYA/FqQ2Ed7Svd/aewaSwRPn+5AODKrjtejaBbC017yqLTAjHdVfR4CimebRurNCFNIZDMP9I1/fO2ikV8c7j/IAcHVcBXIH8F+p6ww="
+    "iv": "+ETr3CyJYhda1agB",
+    "ciphertext": "buky1/5ooNzZn22B4EatEbiZ8v/7nhp/wnsfqA=="
   }
 }
