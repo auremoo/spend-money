@@ -146,7 +146,7 @@ export class Store {
    * Renvoie le nombre d'entrées intégrées.
    */
   async drainInbox(dir = 'inbox') {
-    const files = await this.gh.listDir(dir);
+    const files = await this.gh.listJsonFilesDeep(dir);
     if (!files.length) return 0;
 
     const items = [];

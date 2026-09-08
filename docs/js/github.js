@@ -56,7 +56,7 @@ export class GitHubStore {
     return JSON.parse(raw);
   }
 
-  /** Liste les fichiers .json d'un dossier. Dossier absent = liste vide. */
+  /** Liste le contenu d'un dossier. Dossier absent = liste vide. */
   async listDir(dir) {
     const url = `${API}/repos/${this.owner}/${this.repo}/contents/${encodeURI(dir)}`;
     const res = await fetch(`${url}?ref=${encodeURIComponent(this.branch)}&t=${Date.now()}`, {
@@ -66,8 +66,22 @@ export class GitHubStore {
     if (res.status === 404) return [];
     if (!res.ok) throw new Error(`Lecture du dossier ${dir} impossible (HTTP ${res.status}).`);
     const json = await res.json();
-    if (!Array.isArray(json)) return [];
-    return json.filter((e) => e.type === 'file' && e.name.endsWith('.json'));
+    return Array.isArray(json) ? json : [];
+  }
+
+  /**
+   * Tous les fichiers .json sous un dossier, sous-dossiers compris.
+   * Un format de date contenant des « / » dans le raccourci crée des
+   * dossiers imbriqués : on les traverse plutôt que d'ignorer l'entrée.
+   */
+  async listJsonFilesDeep(dir, depth = 4) {
+    const entries = await this.listDir(dir);
+    const files = entries.filter((e) => e.type === 'file' && e.name.endsWith('.json'));
+    if (depth <= 0) return files;
+    for (const sub of entries.filter((e) => e.type === 'dir')) {
+      files.push(...await this.listJsonFilesDeep(sub.path, depth - 1));
+    }
+    return files;
   }
 
   /** Lit un fichier JSON quelconque du dépôt. Renvoie {json, sha}. */

@@ -44,9 +44,16 @@ and write` sur ce seul dépôt).
 3. **Date** (action « Date », donne la date actuelle)
 4. **Formater la date** — format personnalisé `yyyy-MM-dd`
    → c'est la date de la dépense
-5. **Formater la date** (seconde fois, sur la même date) — format
-   personnalisé `yyyyMMdd-HHmmss`
+5. **Formater la date** (seconde fois, sur la même date) — **Format
+   personnalisé** `yyyyMMdd-HHmmss`
    → c'est le nom du fichier, il doit être unique
+
+   ⚠️ **Bascule bien sur « Personnalisé ».** Le format par défaut de
+   Raccourcis produit `08/09/2026 15:27`, et GitHub interprète les `/`
+   comme des séparateurs de dossiers : ton fichier atterrit dans
+   `inbox/08/09/` au lieu de `inbox/`. L'app sait maintenant descendre
+   dans les sous-dossiers, donc rien n'est perdu — mais autant garder
+   `inbox/` propre. Le nom doit être sans `/`, sans `:` et sans espace.
 6. **Dictionnaire** — trois clés :
    | Clé | Valeur |
    |---|---|
@@ -100,9 +107,18 @@ Lance le raccourci une fois. Va sur GitHub, dossier `inbox/` : le fichier
 doit y être. Ouvre l'app : la dépense apparaît dans la liste et le fichier
 disparaît de `inbox/`.
 
-Si l'API refuse, l'erreur la plus fréquente est un **403** (le jeton n'a
-pas la permission `Contents: Read and write`, ou n'est pas autorisé sur ce
-dépôt) ou un **404** (owner/repo mal orthographié dans l'URL).
+Les réponses d'erreur les plus fréquentes :
+
+| Code | Cause |
+|---|---|
+| **401** `Requires authentication` | En-tête `Authorization` absent, mal orthographié, placé dans le corps au lieu des en-têtes, ou `Bearer` manquant. Le jeton lui-même n'est pas en cause tant que l'app fonctionne avec. |
+| **403** | Le jeton n'a pas `Contents: Read and write`, ou n'est pas autorisé sur ce dépôt. |
+| **404** | Owner ou dépôt mal orthographié dans l'URL. |
+| **422** | Le `content` n'est pas du base64 valide — vérifie l'option « sauts de ligne » de l'encodage. |
+
+Si le `PUT` réussit mais que **rien n'apparaît dans l'app**, regarde le
+champ `path` de la réponse : s'il contient des `/` inattendus, c'est le
+format de date de l'étape 5 (voir l'avertissement ci-dessus).
 
 ## Les trois compromis, dits franchement
 
