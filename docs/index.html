@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<!-- spend-money — Auteur : Aurélien Moote - Moo - 2026 — Licence MIT -->
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#111318">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="spend-money">
+  <title>spend-money</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.png">
+  <link rel="apple-touch-icon" href="icon.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">€</span>
+      <h1>spend-money</h1>
+    </div>
+    <div class="topbar-actions">
+      <span id="sync-badge" class="badge badge-idle">hors ligne</span>
+      <button id="btn-settings" class="icon-btn" type="button" title="Réglages" aria-label="Réglages">⚙</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ------------------------------------------------------ réglages -->
+    <section id="settings" class="card" hidden>
+      <h2>Réglages</h2>
+      <p class="hint">
+        Tout est stocké dans le <strong>localStorage de cet appareil</strong> :
+        ni le jeton ni la passphrase ne sont écrits dans le dépôt.
+      </p>
+      <div class="grid2">
+        <label>Owner GitHub<input id="cfg-owner" type="text" autocapitalize="off" spellcheck="false" placeholder="auremoo"></label>
+        <label>Dépôt<input id="cfg-repo" type="text" autocapitalize="off" spellcheck="false" placeholder="spend-money"></label>
+        <label>Branche<input id="cfg-branch" type="text" autocapitalize="off" spellcheck="false" placeholder="main"></label>
+        <label>Chemin du fichier<input id="cfg-path" type="text" autocapitalize="off" spellcheck="false" placeholder="data/expenses.json"></label>
+      </div>
+      <label>Jeton d'accès (PAT fine-grained, <em>Contents: Read and write</em>)
+        <input id="cfg-token" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…">
+      </label>
+      <label>Passphrase de chiffrement <span class="hint-inline">(vide = données en clair dans le dépôt)</span>
+        <input id="cfg-pass" type="password" autocomplete="off" spellcheck="false" placeholder="optionnelle mais recommandée">
+      </label>
+      <div class="row">
+        <button id="btn-save-cfg" class="primary" type="button">Enregistrer &amp; connecter</button>
+        <button id="btn-forget" class="danger-ghost" type="button">Oublier cet appareil</button>
+      </div>
+      <p id="cfg-status" class="status"></p>
+    </section>
+
+    <!-- ---------------------------------------------------------- ajout -->
+    <section class="card">
+      <h2 id="form-title">Ajouter une dépense</h2>
+      <form id="entry-form" autocomplete="off">
+        <input type="hidden" id="f-id">
+        <div class="grid2">
+          <label>Montant (€)
+            <input id="f-amount" type="number" inputmode="decimal" step="0.01" min="0" required placeholder="12.34">
+          </label>
+          <label>Date
+            <input id="f-date" type="date" required>
+          </label>
+        </div>
+        <label>Description
+          <input id="f-desc" type="text" placeholder="Boulangerie, essence, Netflix…" maxlength="200">
+        </label>
+        <div class="row">
+          <button class="primary" type="submit" id="f-submit">Ajouter</button>
+          <button class="ghost" type="button" id="f-cancel" hidden>Annuler</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- -------------------------------------------------------- filtres -->
+    <section class="card">
+      <h2>Filtres</h2>
+      <label>Recherche par nom / description
+        <input id="q-text" type="search" placeholder="ex. boulangerie">
+      </label>
+      <div class="grid2">
+        <label>Du<input id="q-from" type="date"></label>
+        <label>Au<input id="q-to" type="date"></label>
+      </div>
+      <div class="row chips">
+        <button class="chip" data-range="month" type="button">Ce mois-ci</button>
+        <button class="chip" data-range="prev-month" type="button">Mois dernier</button>
+        <button class="chip" data-range="30" type="button">30 derniers jours</button>
+        <button class="chip" data-range="year" type="button">Cette année</button>
+        <button class="chip chip-clear" data-range="clear" type="button">Tout effacer</button>
+      </div>
+    </section>
+
+    <!-- --------------------------------------------------------- totaux -->
+    <section class="totals">
+      <div class="total-box">
+        <span class="total-label">Total filtré</span>
+        <span id="total-filtered" class="total-value">0,00 €</span>
+      </div>
+      <div class="total-box">
+        <span class="total-label">Entrées</span>
+        <span id="count-filtered" class="total-value">0</span>
+      </div>
+    </section>
+
+    <!-- ---------------------------------------------------------- liste -->
+    <section class="card">
+      <div class="list-head">
+        <h2>Dépenses</h2>
+        <button id="btn-reload" class="ghost small" type="button">Recharger</button>
+      </div>
+      <p id="list-empty" class="empty">Aucune dépense à afficher.</p>
+      <ul id="list" class="list"></ul>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>Créé par <strong>Aurélien Moote - Moo - 2026</strong> — Logiciel libre (licence MIT).</p>
+  </footer>
+
+  <!-- Confirmation d'une dépense reçue depuis le raccourci iOS -->
+  <dialog id="incoming">
+    <form method="dialog">
+      <h2>Dépense reçue</h2>
+      <p class="incoming-amount" id="in-amount">—</p>
+      <label>Description
+        <input id="in-desc" type="text" placeholder="À quoi correspond ce paiement ?" maxlength="200">
+      </label>
+      <label>Date
+        <input id="in-date" type="date">
+      </label>
+      <div class="row">
+        <button class="primary" value="save" id="in-save">Enregistrer</button>
+        <button class="ghost" value="cancel">Ignorer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

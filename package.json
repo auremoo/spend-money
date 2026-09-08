@@ -1,0 +1,19 @@
+{
+  "name": "spend-money",
+  "version": "1.0.0",
+  "description": "Suivi des dépenses carte : une web app statique (GitHub Pages) dont les données vivent dans un dépôt GitHub privé.",
+  "author": "Aurélien Moote - Moo - 2026",
+  "license": "MIT",
+  "private": true,
+  "homepage": "https://auremoo.github.io/spend-money/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/auremoo/spend-money.git"
+  },
+  "scripts": {
+    "icon": "./scripts/icon-prompt.sh",
+    "icon:copy": "./scripts/icon-prompt.sh --copy",
+    "serve": "python3 -m http.server 8080 --directory docs"
+  },
+  "keywords": ["dépenses", "budget", "apple-pay", "shortcuts", "github-pages", "static"]
+}

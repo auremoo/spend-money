@@ -1,0 +1,26 @@
+# Dépendances
+node_modules/
+
+# Système
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Éditeurs
+.vscode/
+.idea/
+*.swp
+
+# Logs / temporaires
+*.log
+tmp/
+.cache/
+
+# Secrets — NE JAMAIS COMMITER
+# Le token GitHub et la passphrase de chiffrement vivent uniquement
+# dans le localStorage du navigateur, jamais dans le dépôt.
+.env
+.env.*
+secrets.json
+token.txt
+*.pem
