@@ -45,7 +45,7 @@ Copie le jeton (`github_pat_…`). Il ne sera plus jamais affiché.
 
 ## 3. Configurer l'app
 
-Ouvre le site, clique sur **⚙**, renseigne :
+Ouvre le site, onglet **Réglages** (en bas), renseigne :
 
 | Champ | Valeur |
 |---|---|

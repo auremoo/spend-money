@@ -17,10 +17,11 @@ aucune base de données, aucun service tiers à héberger ou à payer.
   souviens encore, puis commite l'entrée.
 - **Saisie manuelle** — pour les paiements par carte physique, avec choix
   libre de la date.
-- **Filtres** — par nom/description (recherche texte) et par plage de dates,
-  avec raccourcis « ce mois-ci », « mois dernier », « 30 derniers jours »,
-  « cette année ». Total et nombre d'entrées recalculés en direct.
-- **Édition et suppression** de n'importe quelle entrée.
+- **Filtres** — recherche par nom/description et sélecteur de période
+  (mois en cours, mois précédent, 30 jours, année, tout, ou plage
+  personnalisée). Total, moyenne par jour et graphe quotidien recalculés
+  en direct.
+- **Édition et suppression** — touche une dépense dans la liste.
 - **Chiffrement optionnel au repos** — AES-GCM 256 / PBKDF2-SHA256, clé
   dérivée d'une passphrase qui ne quitte jamais ton navigateur.
 - **File d'attente hors-ligne** — une dépense saisie sans réseau est gardée
@@ -53,7 +54,7 @@ la racine : il n'est **jamais** servi par le site.
    `/docs`.
 2. Créer un **fine-grained PAT** limité à ce dépôt, permission
    `Contents: Read and write`.
-3. Ouvrir l'app, bouton **⚙**, renseigner owner / dépôt / branche / jeton
+3. Ouvrir l'app, onglet **Réglages**, renseigner owner / dépôt / branche / jeton
    (et une passphrase si tu veux le chiffrement).
 4. Créer le raccourci iOS.
 
@@ -71,19 +72,17 @@ Détails : [`guide/INSTALLATION.md`](guide/INSTALLATION.md).
 | [`guide/INSTALLATION.md`](guide/INSTALLATION.md) | Pages, jeton, configuration |
 | [`guide/RACCOURCI-IOS.md`](guide/RACCOURCI-IOS.md) | Format d'URL et construction du raccourci |
 | [`guide/SECURITE.md`](guide/SECURITE.md) | Ce qui est chiffré, ce qui ne l'est pas, et pourquoi |
+| [`guide/ICONE.md`](guide/ICONE.md) | Prompt d'icône et dépôt du fichier |
 
 ## Icône
 
-Le dépôt ne contient pas d'icône : elle se génère. Le script produit le
-prompt à coller dans ChatGPT (contrainte explicite : **aucun coin arrondi**).
+Le prompt à donner à ChatGPT (contrainte explicite : **aucun coin arrondi**)
+et la marche à suivre pour déposer le fichier sont dans
+[`guide/ICONE.md`](guide/ICONE.md). L'image finale va dans `docs/icon.png`.
 
-```bash
-./scripts/icon-prompt.sh            # affiche le prompt
-./scripts/icon-prompt.sh --copy     # copie dans le presse-papiers
-./scripts/icon-prompt.sh -v 2       # variante de style (1 à 3)
-```
-
-Enregistre l'image obtenue sous `docs/icon.png` (1024×1024, PNG).
+En attendant, l'app affiche son logo vectoriel interne
+(`docs/img/logo.svg`) : un « € » dont le montant droit devient une flèche
+descendante.
 
 ## Structure
 
@@ -91,13 +90,13 @@ Enregistre l'image obtenue sous `docs/icon.png` (1024×1024, PNG).
 docs/                 site publié par GitHub Pages
   index.html          interface
   css/style.css       styles (thème clair/sombre automatique)
-  js/app.js           logique d'interface, filtres, réception du raccourci
+  img/logo.svg        symbole vectoriel utilisé dans l'app
+  js/app.js           vues, filtres, feuilles, réception du raccourci
   js/store.js         modèle de données, file d'attente, résolution de conflits
   js/github.js        client de l'API GitHub Contents
   js/crypto.js        AES-GCM + PBKDF2 (WebCrypto)
 data/expenses.json    les dépenses (non publié par Pages)
 guide/                documentation
-scripts/              générateur de prompt d'icône
 ```
 
 ## Format des données

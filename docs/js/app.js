@@ -10,237 +10,317 @@ import { b64ToUtf8 } from './crypto.js';
 const CFG_KEY = 'spend-money.config';
 const $ = (id) => document.getElementById(id);
 
-const els = {
-  syncBadge: $('sync-badge'),
-  settings: $('settings'),
-  btnSettings: $('btn-settings'),
-  cfg: {
-    owner: $('cfg-owner'), repo: $('cfg-repo'), branch: $('cfg-branch'),
-    path: $('cfg-path'), token: $('cfg-token'), pass: $('cfg-pass'),
-    status: $('cfg-status')
-  },
-  form: $('entry-form'),
-  f: { id: $('f-id'), amount: $('f-amount'), date: $('f-date'), desc: $('f-desc'), submit: $('f-submit'), cancel: $('f-cancel'), title: $('form-title') },
-  q: { text: $('q-text'), from: $('q-from'), to: $('q-to') },
-  totalFiltered: $('total-filtered'),
-  countFiltered: $('count-filtered'),
-  list: $('list'),
-  listEmpty: $('list-empty'),
-  btnReload: $('btn-reload'),
-  toast: $('toast'),
-  dlg: $('incoming'),
-  in: { amount: $('in-amount'), desc: $('in-desc'), date: $('in-date') }
-};
-
 const money = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
-const longDate = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+const shortMoney = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+const dayLabel = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+const monthLabel = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' });
 
 let store = null;
-let editingId = null;
+let range = 'month';          // month | prev | 30 | year | all | custom
+let editing = null;           // dépense en cours d'édition, ou null
 
-// ---------------------------------------------------------------- config
+// ═══════════════════════════════════════════════════════ config ════
 function guessRepo() {
   // Sur https://<owner>.github.io/<repo>/ on devine owner et repo.
-  const m = location.hostname.match(/^([\w-]+)\.github\.io$/i);
+  const host = location.hostname.match(/^([\w-]+)\.github\.io$/i);
   const seg = location.pathname.split('/').filter(Boolean);
-  return { owner: m ? m[1] : '', repo: m && seg.length ? seg[0] : '' };
+  return { owner: host ? host[1] : '', repo: host && seg.length ? seg[0] : '' };
 }
 
 function loadConfig() {
-  let cfg = {};
-  try { cfg = JSON.parse(localStorage.getItem(CFG_KEY) || '{}'); } catch { cfg = {}; }
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(CFG_KEY) || '{}'); } catch { /* réglages illisibles */ }
   const guess = guessRepo();
   return {
-    owner: cfg.owner || guess.owner,
-    repo: cfg.repo || guess.repo || 'spend-money',
-    branch: cfg.branch || 'main',
-    path: cfg.path || 'data/expenses.json',
-    token: cfg.token || '',
-    passphrase: cfg.passphrase || ''
+    owner: saved.owner || guess.owner,
+    repo: saved.repo || guess.repo || 'spend-money',
+    branch: saved.branch || 'main',
+    path: saved.path || 'data/expenses.json',
+    token: saved.token || '',
+    passphrase: saved.passphrase || ''
   };
-}
-
-function saveConfig(cfg) {
-  localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
-}
-
-function fillConfigForm(cfg) {
-  els.cfg.owner.value = cfg.owner;
-  els.cfg.repo.value = cfg.repo;
-  els.cfg.branch.value = cfg.branch;
-  els.cfg.path.value = cfg.path;
-  els.cfg.token.value = cfg.token;
-  els.cfg.pass.value = cfg.passphrase;
 }
 
 function readConfigForm() {
   return {
-    owner: els.cfg.owner.value.trim(),
-    repo: els.cfg.repo.value.trim(),
-    branch: els.cfg.branch.value.trim() || 'main',
-    path: els.cfg.path.value.trim() || 'data/expenses.json',
-    token: els.cfg.token.value.trim(),
-    passphrase: els.cfg.pass.value
+    owner: $('cfg-owner').value.trim(),
+    repo: $('cfg-repo').value.trim(),
+    branch: $('cfg-branch').value.trim() || 'main',
+    path: $('cfg-path').value.trim() || 'data/expenses.json',
+    token: $('cfg-token').value.trim(),
+    passphrase: $('cfg-pass').value
   };
 }
 
-// ------------------------------------------------------------------ UI
-function setBadge(text, kind) {
-  els.syncBadge.textContent = text;
-  els.syncBadge.className = `badge badge-${kind}`;
+function fillConfigForm(cfg) {
+  $('cfg-owner').value = cfg.owner;
+  $('cfg-repo').value = cfg.repo;
+  $('cfg-branch').value = cfg.branch;
+  $('cfg-path').value = cfg.path;
+  $('cfg-token').value = cfg.token;
+  $('cfg-pass').value = cfg.passphrase;
+}
+
+// ═══════════════════════════════════════════════════════════ vues ══
+function showView(name) {
+  $('view-home').hidden = name !== 'home';
+  $('view-settings').hidden = name !== 'settings';
+  document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('on', t.dataset.view === name));
+  $('fab').hidden = name !== 'home';
+  window.scrollTo({ top: 0 });
+}
+
+function setSync(text, kind) {
+  $('sync-text').textContent = text;
+  $('sync-chip').className = `sync-chip ${kind}`;
 }
 
 let toastTimer;
 function toast(msg) {
-  els.toast.textContent = msg;
-  els.toast.hidden = false;
+  const el = $('toast');
+  el.textContent = msg;
+  el.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { els.toast.hidden = true; }, 3200);
+  toastTimer = setTimeout(() => { el.hidden = true; }, 3400);
 }
 
-function status(msg, kind = '') {
-  els.cfg.status.textContent = msg;
-  els.cfg.status.className = `status ${kind}`;
+function setStatus(msg, kind = '') {
+  $('cfg-status').textContent = msg;
+  $('cfg-status').className = `status ${kind}`;
 }
 
-// ------------------------------------------------------------- filtrage
+// ══════════════════════════════════════════════════════ filtrage ═══
+const pad = (n) => String(n).padStart(2, '0');
+const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+/** Bornes {from, to, label} de la période active. */
+function bounds() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  switch (range) {
+    case 'month':
+      return { from: iso(new Date(y, m, 1)), to: iso(new Date(y, m + 1, 0)), label: cap(monthLabel.format(now)) };
+    case 'prev': {
+      const d = new Date(y, m - 1, 1);
+      return { from: iso(d), to: iso(new Date(y, m, 0)), label: cap(monthLabel.format(d)) };
+    }
+    case '30': {
+      const d = new Date(now); d.setDate(d.getDate() - 29);
+      return { from: iso(d), to: iso(now), label: '30 derniers jours' };
+    }
+    case 'year':
+      return { from: `${y}-01-01`, to: `${y}-12-31`, label: `Année ${y}` };
+    case 'custom': {
+      const from = $('q-from').value;
+      const to = $('q-to').value;
+      const fmt = (s) => s ? new Date(`${s}T12:00:00`).toLocaleDateString('fr-FR') : '…';
+      return { from, to, label: `Du ${fmt(from)} au ${fmt(to)}` };
+    }
+    default:
+      return { from: '', to: '', label: 'Depuis le début' };
+  }
+}
+
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
 function filtered() {
   if (!store) return [];
-  const q = els.q.text.value.trim().toLowerCase();
-  const from = els.q.from.value;
-  const to = els.q.to.value;
+  const q = $('q-text').value.trim().toLowerCase();
+  const { from, to } = bounds();
   return store.items
-    .filter((i) => (!q || i.description.toLowerCase().includes(q)))
-    .filter((i) => (!from || i.date >= from))
-    .filter((i) => (!to || i.date <= to))
+    .filter((i) => !q || i.description.toLowerCase().includes(q))
+    .filter((i) => !from || i.date >= from)
+    .filter((i) => !to || i.date <= to)
     .sort((a, b) => (b.date + b.createdAt).localeCompare(a.date + a.createdAt));
+}
+
+// ═══════════════════════════════════════════════════════ rendu ═════
+/** Teinte stable dérivée du texte, pour la pastille de chaque dépense. */
+function hue(text) {
+  let h = 0;
+  for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) % 360;
+  return h;
+}
+
+function avatar(item) {
+  const el = document.createElement('span');
+  el.className = 'item-avatar';
+  const label = (item.description || '?').trim();
+  el.textContent = label.slice(0, 1).toUpperCase();
+  const h = hue(label.toLowerCase());
+  el.style.background = `hsl(${h} 62% 52% / .18)`;
+  el.style.color = `hsl(${h} 70% 62%)`;
+  return el;
+}
+
+function renderSpark(items, from, to) {
+  const box = $('spark');
+  box.innerHTML = '';
+  if (!items.length) return;
+
+  const dates = items.map((i) => i.date).sort();
+  const start = new Date(`${from || dates[0]}T12:00:00`);
+  const end = new Date(`${to || dates[dates.length - 1]}T12:00:00`);
+  const days = Math.min(Math.round((end - start) / 86400000) + 1, 62);
+  if (days < 2) return;
+
+  const totals = new Array(days).fill(0);
+  for (const it of items) {
+    const idx = Math.round((new Date(`${it.date}T12:00:00`) - start) / 86400000);
+    if (idx >= 0 && idx < days) totals[idx] += it.amount;
+  }
+  const max = Math.max(...totals);
+  if (!max) return;
+
+  const today = todayISO();
+  for (let i = 0; i < days; i++) {
+    const bar = document.createElement('i');
+    bar.style.height = `${Math.max(2, (totals[i] / max) * 40)}px`;
+    const d = new Date(start); d.setDate(d.getDate() + i);
+    if (!totals[i]) bar.className = 'zero';
+    else if (iso(d) === today) bar.className = 'hot';
+    box.appendChild(bar);
+  }
 }
 
 function render() {
   const items = filtered();
+  const { from, to, label } = bounds();
   const total = items.reduce((s, i) => s + i.amount, 0);
-  els.totalFiltered.textContent = money.format(total);
-  els.countFiltered.textContent = String(items.length);
 
-  els.list.innerHTML = '';
-  els.listEmpty.hidden = items.length > 0;
+  $('hero-label').textContent = label;
+  $('hero-amount').textContent = store ? money.format(total) : '—';
+  $('hero-count').textContent = `${items.length} dépense${items.length > 1 ? 's' : ''}`;
 
-  const queuedIds = new Set(store ? store.pending.map((i) => i.id) : []);
-  let currentDay = null;
+  const spanDays = from && to
+    ? Math.max(1, Math.round((new Date(to) - new Date(from)) / 86400000) + 1)
+    : 0;
+  $('hero-avg').textContent = spanDays > 1 && total ? `${shortMoney.format(total / spanDays)} / jour` : '';
 
-  for (const item of items) {
-    if (item.date !== currentDay) {
-      currentDay = item.date;
-      const sep = document.createElement('li');
-      sep.className = 'day-sep';
-      sep.textContent = longDate.format(new Date(`${item.date}T12:00:00`));
-      els.list.appendChild(sep);
+  renderSpark(items, from, to);
+  $('q-clear').hidden = !$('q-text').value;
+
+  const list = $('list');
+  list.innerHTML = '';
+  $('empty').hidden = items.length > 0;
+
+  const queued = new Set(store ? store.pending.map((i) => i.id) : []);
+  const byDay = new Map();
+  for (const it of items) {
+    if (!byDay.has(it.date)) byDay.set(it.date, []);
+    byDay.get(it.date).push(it);
+  }
+
+  for (const [date, dayItems] of byDay) {
+    const head = document.createElement('li');
+    head.className = 'day';
+    const name = document.createElement('span');
+    name.className = 'day-name';
+    name.textContent = cap(dayLabel.format(new Date(`${date}T12:00:00`)));
+    const sum = document.createElement('span');
+    sum.className = 'day-total';
+    sum.textContent = money.format(dayItems.reduce((s, i) => s + i.amount, 0));
+    head.append(name, sum);
+    list.appendChild(head);
+
+    for (const item of dayItems) {
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'item' + (queued.has(item.id) ? ' queued' : '');
+      btn.addEventListener('click', () => openEntry(item));
+
+      const body = document.createElement('span');
+      body.className = 'item-body';
+      const desc = document.createElement('span');
+      desc.className = 'item-desc';
+      desc.textContent = item.description || 'Sans description';
+      const sub = document.createElement('span');
+      sub.className = 'item-sub';
+      sub.textContent = item.source === 'shortcut' ? 'Apple Pay' : 'Saisie manuelle';
+      if (queued.has(item.id)) sub.textContent += ' · en attente';
+      body.append(desc, sub);
+
+      const amount = document.createElement('span');
+      amount.className = 'item-amount';
+      amount.textContent = money.format(item.amount);
+
+      btn.append(avatar(item), body, amount);
+      li.appendChild(btn);
+      list.appendChild(li);
     }
-
-    const li = document.createElement('li');
-    li.className = 'item' + (queuedIds.has(item.id) ? ' queued' : '');
-
-    const main = document.createElement('div');
-    main.className = 'item-main';
-    const desc = document.createElement('span');
-    desc.className = 'item-desc';
-    desc.textContent = item.description || '(sans description)';
-    const meta = document.createElement('span');
-    meta.className = 'item-meta';
-    meta.textContent = item.source === 'shortcut' ? 'Apple Pay' : 'saisie manuelle';
-    if (queuedIds.has(item.id)) meta.textContent += ' · en attente de synchro';
-    main.append(desc, meta);
-
-    const amount = document.createElement('span');
-    amount.className = 'item-amount';
-    amount.textContent = money.format(item.amount);
-
-    const actions = document.createElement('div');
-    actions.className = 'item-actions';
-    const edit = document.createElement('button');
-    edit.type = 'button';
-    edit.textContent = 'Éditer';
-    edit.addEventListener('click', () => startEdit(item));
-    const del = document.createElement('button');
-    del.type = 'button';
-    del.textContent = 'Suppr.';
-    del.addEventListener('click', () => removeItem(item));
-    actions.append(edit, del);
-
-    li.append(main, amount, actions);
-    els.list.appendChild(li);
   }
 }
 
-// -------------------------------------------------------------- actions
-function startEdit(item) {
-  editingId = item.id;
-  els.f.id.value = item.id;
-  els.f.amount.value = item.amount;
-  els.f.date.value = item.date;
-  els.f.desc.value = item.description;
-  els.f.title.textContent = 'Modifier la dépense';
-  els.f.submit.textContent = 'Enregistrer';
-  els.f.cancel.hidden = false;
-  els.f.amount.focus();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+// ═════════════════════════════════════════════════ feuille ajout ═══
+const parseAmount = (v) => Number(String(v).replace(',', '.').replace(/[^\d.]/g, ''));
+
+function openEntry(item = null) {
+  editing = item;
+  $('sheet-title').textContent = item ? 'Modifier la dépense' : 'Nouvelle dépense';
+  $('f-id').value = item ? item.id : '';
+  $('f-amount').value = item ? item.amount.toFixed(2).replace('.', ',') : '';
+  $('f-desc').value = item ? item.description : '';
+  $('f-date').value = item ? item.date : todayISO();
+  $('f-submit').textContent = item ? 'Enregistrer' : 'Ajouter';
+  $('f-delete').hidden = !item;
+  $('sheet-entry').showModal();
+  if (!item) setTimeout(() => $('f-amount').focus(), 120);
 }
 
-function resetForm() {
-  editingId = null;
-  els.form.reset();
-  els.f.id.value = '';
-  els.f.date.value = todayISO();
-  els.f.title.textContent = 'Ajouter une dépense';
-  els.f.submit.textContent = 'Ajouter';
-  els.f.cancel.hidden = true;
-}
+async function submitEntry(ev) {
+  ev.preventDefault();
+  if (!store) { toast('Configure d\'abord l\'accès GitHub, onglet Réglages.'); return; }
 
-async function removeItem(item) {
-  if (!confirm(`Supprimer « ${item.description || 'sans description'} » (${money.format(item.amount)}) ?`)) return;
+  const amount = parseAmount($('f-amount').value);
+  if (!Number.isFinite(amount) || amount <= 0) { toast('Montant invalide.'); return; }
+
+  const payload = {
+    amount,
+    date: $('f-date').value,
+    description: $('f-desc').value,
+    source: editing ? editing.source : 'manual'
+  };
+
+  $('f-submit').disabled = true;
+  setSync('envoi…', 'busy');
   try {
-    setBadge('envoi…', 'busy');
-    await store.remove(item.id);
-    setBadge('synchronisé', 'ok');
+    if (editing) {
+      await store.update(editing.id, payload);
+      toast('Dépense modifiée.');
+    } else {
+      const { queued } = await store.add(payload);
+      toast(queued ? 'Hors ligne : gardée en local, elle repartira plus tard.' : 'Dépense enregistrée.');
+    }
+    $('sheet-entry').close();
+    refreshSync();
+    render();
+  } catch (err) {
+    setSync('erreur', 'err');
+    toast(`Échec : ${err.message}`);
+  } finally {
+    $('f-submit').disabled = false;
+  }
+}
+
+async function deleteEntry() {
+  if (!editing) return;
+  if (!confirm(`Supprimer « ${editing.description || 'sans description'} » (${money.format(editing.amount)}) ?`)) return;
+  setSync('envoi…', 'busy');
+  try {
+    await store.remove(editing.id);
+    $('sheet-entry').close();
+    refreshSync();
     render();
     toast('Dépense supprimée.');
   } catch (err) {
-    setBadge('erreur', 'err');
+    setSync('erreur', 'err');
     toast(`Suppression impossible : ${err.message}`);
   }
 }
 
-async function submitForm(ev) {
-  ev.preventDefault();
-  if (!store) { toast('Configure d\'abord l\'accès GitHub (⚙).'); return; }
-  const payload = {
-    amount: els.f.amount.value,
-    date: els.f.date.value,
-    description: els.f.desc.value,
-    source: 'manual'
-  };
-  els.f.submit.disabled = true;
-  setBadge('envoi…', 'busy');
-  try {
-    if (editingId) {
-      await store.update(editingId, payload);
-      toast('Dépense modifiée.');
-    } else {
-      const { queued } = await store.add(payload);
-      toast(queued ? 'Hors ligne : mise en file d\'attente locale.' : 'Dépense enregistrée sur GitHub.');
-    }
-    setBadge(store.pending.length ? `${store.pending.length} en attente` : 'synchronisé', store.pending.length ? 'busy' : 'ok');
-    resetForm();
-    render();
-  } catch (err) {
-    setBadge('erreur', 'err');
-    toast(`Échec : ${err.message}`);
-  } finally {
-    els.f.submit.disabled = false;
-  }
-}
-
-// ------------------------------------------ entrée depuis le raccourci
+// ══════════════════════════════════════ réception du raccourci ═════
 /**
  * Formats acceptés dans le FRAGMENT d'URL (jamais transmis au serveur) :
  *   #add?amount=12.34&note=Boulangerie&date=2026-09-08
@@ -260,141 +340,149 @@ function parseIncoming() {
     } catch { return null; }
   }
 
-  const amount = Number(String(raw.amount ?? '').replace(',', '.').replace(/[^\d.-]/g, ''));
-  if (!Number.isFinite(amount) || amount === 0) return null;
+  const amount = parseAmount(raw.amount ?? '');
+  if (!Number.isFinite(amount) || amount <= 0) return null;
   return { amount, description: raw.note || '', date: raw.date || todayISO() };
-}
-
-function clearHash() {
-  history.replaceState(null, '', location.pathname + location.search);
 }
 
 async function handleIncoming() {
   const incoming = parseIncoming();
   if (!incoming) return;
-  clearHash();
+  history.replaceState(null, '', location.pathname + location.search);
 
-  els.in.amount.textContent = money.format(incoming.amount);
-  els.in.desc.value = incoming.description;
-  els.in.date.value = incoming.date;
-  els.dlg.showModal();
-  els.in.desc.focus();
+  const dlg = $('sheet-incoming');
+  $('in-amount').textContent = money.format(incoming.amount);
+  $('in-desc').value = incoming.description;
+  $('in-date').value = incoming.date;
+  showView('home');
+  dlg.showModal();
+  setTimeout(() => $('in-desc').focus(), 120);
 
-  els.dlg.addEventListener('close', async () => {
-    if (els.dlg.returnValue !== 'save') { toast('Dépense ignorée.'); return; }
-    if (!store) { toast('Configure d\'abord l\'accès GitHub (⚙).'); return; }
-    setBadge('envoi…', 'busy');
+  dlg.addEventListener('close', async () => {
+    if (dlg.returnValue !== 'save') { toast('Dépense ignorée.'); return; }
+    if (!store) { toast('Configure d\'abord l\'accès GitHub, onglet Réglages.'); return; }
+    setSync('envoi…', 'busy');
     const { queued } = await store.add({
       amount: incoming.amount,
-      description: els.in.desc.value,
-      date: els.in.date.value,
+      description: $('in-desc').value,
+      date: $('in-date').value,
       source: 'shortcut'
     });
-    setBadge(queued ? `${store.pending.length} en attente` : 'synchronisé', queued ? 'busy' : 'ok');
-    toast(queued ? 'Hors ligne : conservé localement.' : 'Dépense enregistrée.');
+    refreshSync();
+    toast(queued ? 'Hors ligne : gardée en local.' : 'Dépense enregistrée.');
     render();
   }, { once: true });
 }
 
-// ------------------------------------------------------------ connexion
+// ════════════════════════════════════════════════════ connexion ════
+function refreshSync() {
+  const n = store ? store.pending.length : 0;
+  if (n) setSync(`${n} en attente`, 'busy');
+  else setSync('à jour', 'ok');
+}
+
 async function connect(cfg, { silent = false } = {}) {
   if (!cfg.token || !cfg.owner || !cfg.repo) {
-    setBadge('non configuré', 'idle');
-    if (!silent) status('Owner, dépôt et jeton sont obligatoires.', 'err');
-    els.settings.hidden = false;
+    setSync('non configuré', '');
+    $('conn-line').textContent = 'Non connecté';
+    if (!silent) setStatus('Owner, dépôt et jeton sont obligatoires.', 'err');
+    render();
     return false;
   }
+
   store = new Store(cfg);
-  setBadge('connexion…', 'busy');
+  setSync('connexion…', 'busy');
   try {
     const info = await store.gh.check();
     await store.load();
-    const n = await store.flushPending();
-    setBadge('synchronisé', 'ok');
-    status(`Connecté à ${info.repoFullName} en tant que ${info.login}.`, 'ok');
-    if (n) toast(`${n} dépense(s) en attente synchronisée(s).`);
+    const flushed = await store.flushPending();
+    refreshSync();
+    $('conn-line').textContent = `${info.repoFullName} · ${info.login}${cfg.passphrase ? ' · chiffré' : ''}`;
+    setStatus('Connecté.', 'ok');
+    if (flushed) toast(`${flushed} dépense(s) en attente synchronisée(s).`);
     render();
     return true;
   } catch (err) {
-    setBadge('erreur', 'err');
-    status(err.message, 'err');
-    if (err.code === 'NEED_PASSPHRASE' || err.code === 'BAD_PASSPHRASE') els.settings.hidden = false;
+    setSync('erreur', 'err');
+    $('conn-line').textContent = 'Erreur de connexion';
+    setStatus(err.message, 'err');
     render();
     return false;
   }
 }
 
-// -------------------------------------------------------- initialisation
-function bindFilters() {
-  ['input', 'change'].forEach((ev) => {
-    els.q.text.addEventListener(ev, render);
-    els.q.from.addEventListener(ev, render);
-    els.q.to.addEventListener(ev, render);
+// ═════════════════════════════════════════════════════════ init ════
+function bindControls() {
+  document.querySelectorAll('.tab').forEach((tab) => {
+    tab.addEventListener('click', () => showView(tab.dataset.view));
   });
+  $('sync-chip').addEventListener('click', () => showView('settings'));
 
-  document.querySelectorAll('.chip').forEach((chip) => {
-    chip.addEventListener('click', () => {
-      const now = new Date();
-      const p = (n) => String(n).padStart(2, '0');
-      const first = (y, m) => `${y}-${p(m + 1)}-01`;
-      const last = (y, m) => todayISO(new Date(y, m + 1, 0));
-      switch (chip.dataset.range) {
-        case 'month':
-          els.q.from.value = first(now.getFullYear(), now.getMonth());
-          els.q.to.value = last(now.getFullYear(), now.getMonth());
-          break;
-        case 'prev-month': {
-          const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-          els.q.from.value = first(d.getFullYear(), d.getMonth());
-          els.q.to.value = last(d.getFullYear(), d.getMonth());
-          break;
-        }
-        case '30': {
-          const d = new Date(now); d.setDate(d.getDate() - 29);
-          els.q.from.value = todayISO(d);
-          els.q.to.value = todayISO(now);
-          break;
-        }
-        case 'year':
-          els.q.from.value = `${now.getFullYear()}-01-01`;
-          els.q.to.value = `${now.getFullYear()}-12-31`;
-          break;
-        default:
-          els.q.text.value = ''; els.q.from.value = ''; els.q.to.value = '';
-      }
+  $('fab').addEventListener('click', () => openEntry(null));
+  $('entry-form').addEventListener('submit', submitEntry);
+  $('f-cancel').addEventListener('click', () => $('sheet-entry').close());
+  $('f-delete').addEventListener('click', deleteEntry);
+
+  $('q-text').addEventListener('input', render);
+  $('q-clear').addEventListener('click', () => { $('q-text').value = ''; render(); });
+
+  document.querySelectorAll('#segmented button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      range = btn.dataset.range;
+      document.querySelectorAll('#segmented button').forEach((b) => b.classList.toggle('on', b === btn));
+      $('custom-range').hidden = true;
       render();
     });
   });
+
+  $('toggle-custom').addEventListener('click', () => {
+    const box = $('custom-range');
+    box.hidden = !box.hidden;
+    if (!box.hidden) {
+      range = 'custom';
+      document.querySelectorAll('#segmented button').forEach((b) => b.classList.remove('on'));
+      if (!$('q-from').value) {
+        const now = new Date();
+        $('q-from').value = iso(new Date(now.getFullYear(), now.getMonth(), 1));
+        $('q-to').value = todayISO();
+      }
+    }
+    render();
+  });
+  $('q-from').addEventListener('change', () => { range = 'custom'; render(); });
+  $('q-to').addEventListener('change', () => { range = 'custom'; render(); });
+
+  $('btn-save-cfg').addEventListener('click', async () => {
+    const next = readConfigForm();
+    localStorage.setItem(CFG_KEY, JSON.stringify(next));
+    setStatus('Connexion…');
+    if (await connect(next)) { showView('home'); toast('Connecté.'); }
+  });
+
+  $('btn-reload').addEventListener('click', () => connect(loadConfig()));
+
+  $('btn-forget').addEventListener('click', () => {
+    if (!confirm('Effacer le jeton, la passphrase et les réglages de cet appareil ?\n\nLes dépenses déjà poussées sur GitHub sont conservées.')) return;
+    localStorage.removeItem(CFG_KEY);
+    location.reload();
+  });
+
+  window.addEventListener('online', () => {
+    if (!store) return;
+    store.flushPending().then((n) => { if (n) { refreshSync(); render(); toast(`${n} dépense(s) synchronisée(s).`); } });
+  });
+  window.addEventListener('hashchange', handleIncoming);
 }
 
 function init() {
   const cfg = loadConfig();
   fillConfigForm(cfg);
-  resetForm();
-  bindFilters();
+  bindControls();
 
-  els.btnSettings.addEventListener('click', () => { els.settings.hidden = !els.settings.hidden; });
-  els.form.addEventListener('submit', submitForm);
-  els.f.cancel.addEventListener('click', resetForm);
-  els.btnReload.addEventListener('click', () => connect(loadConfig()));
-
-  els.$saveCfg = $('btn-save-cfg');
-  els.$saveCfg.addEventListener('click', async () => {
-    const next = readConfigForm();
-    saveConfig(next);
-    if (await connect(next)) els.settings.hidden = true;
-  });
-
-  $('btn-forget').addEventListener('click', () => {
-    if (!confirm('Effacer le jeton, la passphrase et les réglages de cet appareil ?\n(Les dépenses déjà poussées sur GitHub sont conservées.)')) return;
-    localStorage.removeItem(CFG_KEY);
-    location.reload();
-  });
-
-  window.addEventListener('online', () => { if (store) store.flushPending().then((n) => { if (n) { render(); toast(`${n} dépense(s) synchronisée(s).`); } }); });
-  window.addEventListener('hashchange', handleIncoming);
-
+  showView('home');
+  render();
   connect(cfg, { silent: true }).then(handleIncoming);
+  if (!cfg.token) showView('settings');
 }
 
 init();
