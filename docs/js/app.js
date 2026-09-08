@@ -394,7 +394,8 @@ async function connect(cfg, { silent = false } = {}) {
   if (!cfg.token || !cfg.owner || !cfg.repo) {
     setSync('non configuré', '');
     $('conn-line').textContent = 'Non connecté';
-    if (!silent) setStatus('Owner, dépôt et jeton sont obligatoires.', 'err');
+    if (!cfg.token) setStatus('Colle ton jeton d\'accès ci-dessus, puis « Enregistrer & connecter ».');
+    else if (!silent) setStatus('Owner, dépôt et jeton sont obligatoires.', 'err');
     render();
     return false;
   }
