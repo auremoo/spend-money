@@ -322,19 +322,29 @@ async function deleteEntry() {
 
 // ══════════════════════════════════════ réception du raccourci ═════
 /**
- * Formats acceptés dans le FRAGMENT d'URL (jamais transmis au serveur) :
- *   #add?amount=12.34&note=Boulangerie&date=2026-09-08
- *   #add?d=<base64 d'un JSON {amount, note, date}>
+ * Formats acceptés, par ordre de préférence.
+ *
+ *   #amount=12.34&note=Boulangerie&date=2026-09-08   ← recommandé
+ *   #add?amount=12.34&note=Boulangerie               ← historique
+ *   ?amount=12.34&note=Boulangerie                   ← repli
+ *
+ * Les deux premiers passent par le FRAGMENT, qui n'est jamais transmis au
+ * serveur. Le premier ne contient aucun « ? » : certains validateurs d'URL
+ * (dont celui de Raccourcis iOS) refusent une query à l'intérieur d'un
+ * fragment, pourtant permise par la RFC 3986.
  */
 function parseIncoming() {
   const hash = location.hash.replace(/^#/, '');
   let params;
+
   if (hash.startsWith('add')) {
-    params = new URLSearchParams(hash.slice(hash.indexOf('?') + 1));
+    const q = hash.indexOf('?');
+    params = new URLSearchParams(q === -1 ? '' : hash.slice(q + 1));
+  } else if (hash.includes('amount=') || hash.includes('d=')) {
+    params = new URLSearchParams(hash);
   } else {
-    // Repli : certains clients (Raccourcis iOS selon les versions) refusent
-    // ou perdent le fragment. La query string est acceptée, au prix d'une
-    // trace côté serveur — voir guide/SECURITE.md.
+    // Repli : la query string est acceptée, au prix d'une trace côté
+    // serveur — voir guide/SECURITE.md.
     const search = new URLSearchParams(location.search);
     if (!search.has('amount') && !search.has('d')) return null;
     params = search;

@@ -33,7 +33,7 @@ aucune base de données, aucun service tiers à héberger ou à payer.
 Apple Pay
    │
    ▼
-Raccourci iOS ──► https://<owner>.github.io/spend-money/#add?amount=12.34
+Raccourci iOS ──► https://<owner>.github.io/spend-money/#amount=12.34
    │                                                     └── fragment :
    │                                                         jamais envoyé
    │                                                         au serveur

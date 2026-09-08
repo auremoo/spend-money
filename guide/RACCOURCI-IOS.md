@@ -2,16 +2,23 @@
 
 ## Le format d'URL
 
-```
-https://<owner>.github.io/spend-money/#add?amount=12.34&note=Boulangerie&date=2026-09-08
-```
-
-Une forme de repli sans `#` est acceptée, si Raccourcis bute sur le
-fragment (voir plus bas) :
+**La forme recommandée** — aucun `?`, aucun caractère qui fasse tiquer le
+validateur d'URL d'iOS :
 
 ```
-https://<owner>.github.io/spend-money/?amount=12.34&note=Boulangerie&date=2026-09-08
+https://<owner>.github.io/spend-money/#amount=12.34&note=Boulangerie&date=2026-09-08
 ```
+
+Deux autres formes restent acceptées :
+
+```
+https://<owner>.github.io/spend-money/#add?amount=12.34&note=Boulangerie   (historique)
+https://<owner>.github.io/spend-money/?amount=12.34&note=Boulangerie       (repli, voir SECURITE.md)
+```
+
+⚠️ La forme historique met un `?` **à l'intérieur** du fragment. La
+RFC 3986 l'autorise, mais Raccourcis iOS la rejette avec « URL non
+valide ». C'est pour ça que la forme recommandée n'en contient aucun.
 
 - `amount` — **obligatoire**, décimal, point ou virgule acceptés.
 - `note` — optionnel, la description (encodée URL).
@@ -45,7 +52,7 @@ Un raccourci manuel, déclenché depuis le widget ou l'écran d'accueil.
 3. Action **« URL »** (catégorie Web/Safari) — **ne saute pas cette étape**,
    voir le piège RTF plus bas. Contenu du champ :
    ```
-   https://auremoo.github.io/spend-money/#add?amount=[Entrée fournie]
+   https://auremoo.github.io/spend-money/#amount=[Entrée fournie]
    ```
    `[Entrée fournie]` est la variable magique de l'étape 2, à **insérer**
    depuis la barre au-dessus du clavier, pas à taper.
@@ -58,7 +65,7 @@ Résultat :
 
 ```
 Demander     Nombre  « Montant payé ? »
-URL          https://auremoo.github.io/spend-money/#add?amount=[Entrée fournie]
+URL          https://auremoo.github.io/spend-money/#amount=[Entrée fournie]
 Ouvrir       [URL]
 ```
 
@@ -69,6 +76,27 @@ et si tu annules rien n'est écrit.
 ---
 
 ## Les deux erreurs que Raccourcis renvoie, et leur cause
+
+### « URL non valide » à l'exécution
+
+Deux causes, dans cet ordre de probabilité.
+
+**1. Le `?` dans le fragment.** Si ton adresse est de la forme
+`…/#add?amount=10`, Raccourcis refuse de la valider. Utilise la forme
+recommandée, sans `?` :
+
+```
+https://auremoo.github.io/spend-money/#amount=[Entrée fournie]
+```
+
+**2. La mauvaise variable en entrée.** L'action « Ouvrir des URL » prend
+par défaut la sortie de l'action précédente. Si son champ contient
+`Entrée fournie` (le nombre) au lieu de la pastille `URL`, elle tente
+d'ouvrir `12,34` — d'où « URL non valide ». Touche la pastille, supprime-la
+et insère `URL`.
+
+Vérifie aussi qu'aucun espace ni retour à la ligne ne traîne en fin
+d'adresse.
 
 ### « Impossible de convertir Texte enrichi (RTF) en URL »
 
