@@ -12,9 +12,10 @@ aucune base de données, aucun service tiers à héberger ou à payer.
 
 ## Ce que ça fait
 
-- **Capture Apple Pay** — un raccourci iOS ouvre l'app avec le montant ;
-  l'app affiche une fenêtre pour saisir la description pendant que tu t'en
-  souviens encore, puis commite l'entrée.
+- **Capture Apple Pay** — deux méthodes au choix : un raccourci iOS ouvre
+  l'app avec le montant et tu saisis la description dans une feuille
+  dédiée ; ou le raccourci écrit directement dans le dépôt, sans ouvrir de
+  navigateur, et l'app relève la boîte de réception à son ouverture.
 - **Saisie manuelle** — pour les paiements par carte physique, avec choix
   libre de la date.
 - **Filtres** — recherche par nom/description et sélecteur de période
@@ -70,7 +71,8 @@ Détails : [`guide/INSTALLATION.md`](guide/INSTALLATION.md).
 | Fichier | Contenu |
 |---|---|
 | [`guide/INSTALLATION.md`](guide/INSTALLATION.md) | Pages, jeton, configuration |
-| [`guide/RACCOURCI-IOS.md`](guide/RACCOURCI-IOS.md) | Format d'URL et construction du raccourci |
+| [`guide/RACCOURCI-IOS.md`](guide/RACCOURCI-IOS.md) | Raccourci par URL : format et construction |
+| [`guide/RACCOURCI-DIRECT.md`](guide/RACCOURCI-DIRECT.md) | Raccourci en arrière-plan, sans ouvrir Safari |
 | [`guide/SECURITE.md`](guide/SECURITE.md) | Ce qui est chiffré, ce qui ne l'est pas, et pourquoi |
 | [`guide/ICONE.md`](guide/ICONE.md) | Prompt d'icône et dépôt du fichier |
 
@@ -96,6 +98,7 @@ docs/                 site publié par GitHub Pages
   js/github.js        client de l'API GitHub Contents
   js/crypto.js        AES-GCM + PBKDF2 (WebCrypto)
 data/expenses.json    les dépenses (non publié par Pages)
+inbox/                boîte de réception du raccourci direct, vidée à l'ouverture
 guide/                documentation
 ```
 

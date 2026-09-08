@@ -416,10 +416,13 @@ async function connect(cfg, { silent = false } = {}) {
     const info = await store.gh.check();
     await store.load();
     const flushed = await store.flushPending();
+    const drained = await store.drainInbox().catch(() => 0);
+    if (drained) render();
     refreshSync();
     $('conn-line').textContent = `${info.repoFullName} · ${info.login}${cfg.passphrase ? ' · chiffré' : ''}`;
     setStatus('Connecté.', 'ok');
     if (flushed) toast(`${flushed} dépense(s) en attente synchronisée(s).`);
+    else if (drained) toast(`${drained} dépense(s) reçue(s) du raccourci.`);
     render();
     return true;
   } catch (err) {

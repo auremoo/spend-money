@@ -80,6 +80,21 @@ Concrètement : même si le dépôt fuitait, ou si tu devais le rendre public
 pour utiliser Pages sur un compte gratuit, tes dépenses resteraient
 illisibles.
 
+## 4 bis. Le raccourci direct casse en partie le chiffrement
+
+Si tu utilises `RACCOURCI-DIRECT.md` (le raccourci qui écrit sans ouvrir
+Safari), Raccourcis dépose des fichiers en clair dans `inbox/`. L'app les
+intègre puis les supprime, mais **l'historique git conserve leur
+contenu**.
+
+Conséquence : `data/expenses.json` reste chiffré, mais chaque dépense
+passée par ce raccourci laisse une trace lisible dans l'historique du
+dépôt. Raccourcis ne sait pas faire d'AES, il n'y a pas de contournement
+simple.
+
+Si le chiffrement compte vraiment, garde la méthode par URL : rien n'y est
+jamais écrit en clair.
+
 ## 5. Le jeton GitHub
 
 - C'est un **fine-grained PAT**, limité au seul dépôt `spend-money` et à

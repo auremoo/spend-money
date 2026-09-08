@@ -139,6 +139,47 @@ export class Store {
     );
   }
 
+  /**
+   * Relève la boîte de réception : les fichiers déposés par le raccourci
+   * iOS dans inbox/ sont intégrés à la liste, puis supprimés du dépôt.
+   * Un fichier illisible est laissé en place plutôt que perdu.
+   * Renvoie le nombre d'entrées intégrées.
+   */
+  async drainInbox(dir = 'inbox') {
+    const files = await this.gh.listDir(dir);
+    if (!files.length) return 0;
+
+    const items = [];
+    const collected = [];
+    for (const file of files) {
+      try {
+        const { json, sha } = await this.gh.readAt(file.path);
+        const amount = Number(String(json.amount ?? '').replace(',', '.'));
+        if (!Number.isFinite(amount) || amount <= 0) continue;
+        items.push(this.sanitize({
+          amount,
+          description: json.description ?? json.note ?? '',
+          date: json.date,
+          createdAt: json.createdAt,
+          source: json.source || 'shortcut'
+        }));
+        collected.push({ path: file.path, sha });
+      } catch { /* fichier illisible : on n'y touche pas */ }
+    }
+    if (!items.length) return 0;
+
+    await this.commit(
+      (list) => [...items, ...list].sort((a, b) => (b.date + b.createdAt).localeCompare(a.date + a.createdAt)),
+      `feat(data): ${items.length} dépense(s) reçue(s) du raccourci`
+    );
+
+    for (const file of collected) {
+      try { await this.gh.deleteAt(file.path, file.sha, 'chore(inbox): entrée intégrée'); }
+      catch { /* la prochaine relève réessaiera */ }
+    }
+    return items.length;
+  }
+
   /** Renvoie le nombre d'entrées poussées. */
   async flushPending() {
     const queued = this.pending;

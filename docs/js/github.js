@@ -56,6 +56,43 @@ export class GitHubStore {
     return JSON.parse(raw);
   }
 
+  /** Liste les fichiers .json d'un dossier. Dossier absent = liste vide. */
+  async listDir(dir) {
+    const url = `${API}/repos/${this.owner}/${this.repo}/contents/${encodeURI(dir)}`;
+    const res = await fetch(`${url}?ref=${encodeURIComponent(this.branch)}&t=${Date.now()}`, {
+      headers: headers(this.token),
+      cache: 'no-store'
+    });
+    if (res.status === 404) return [];
+    if (!res.ok) throw new Error(`Lecture du dossier ${dir} impossible (HTTP ${res.status}).`);
+    const json = await res.json();
+    if (!Array.isArray(json)) return [];
+    return json.filter((e) => e.type === 'file' && e.name.endsWith('.json'));
+  }
+
+  /** Lit un fichier JSON quelconque du dépôt. Renvoie {json, sha}. */
+  async readAt(path) {
+    const url = `${API}/repos/${this.owner}/${this.repo}/contents/${encodeURI(path)}`;
+    const res = await fetch(`${url}?ref=${encodeURIComponent(this.branch)}&t=${Date.now()}`, {
+      headers: headers(this.token),
+      cache: 'no-store'
+    });
+    if (!res.ok) throw new Error(`Lecture de ${path} impossible (HTTP ${res.status}).`);
+    const meta = await res.json();
+    return { json: JSON.parse(b64ToUtf8(meta.content.replace(/\n/g, ''))), sha: meta.sha };
+  }
+
+  /** Supprime un fichier du dépôt. */
+  async deleteAt(path, sha, message) {
+    const url = `${API}/repos/${this.owner}/${this.repo}/contents/${encodeURI(path)}`;
+    const res = await fetch(url, {
+      method: 'DELETE',
+      headers: headers(this.token),
+      body: JSON.stringify({ message: message || `chore: suppression de ${path}`, sha, branch: this.branch })
+    });
+    if (!res.ok) throw new Error(`Suppression de ${path} impossible (HTTP ${res.status}).`);
+  }
+
   /** Écrit le fichier de données (création ou mise à jour). */
   async write(obj, message) {
     const body = {
