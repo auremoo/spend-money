@@ -554,3 +554,15 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .sheet .field { border-bottom: 0; padding-bottom: 4px; }
 .sheet .field + .field { padding-top: 8px; }
 .spark i.zero { opacity: .1; }
+
+/* Entrée reçue du raccourci sans montant exploitable, à compléter. */
+.item-amount.todo {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 4px 9px;
+  border: 1px dashed var(--accent);
+  border-radius: 999px;
+}

@@ -139,9 +139,66 @@ qui ne stocke jamais rien en clair.
 description au moment du paiement, dans la fenêtre de Raccourcis. C'est
 d'ailleurs ce que tu décrivais au départ.
 
+## Le montant arrive à 0
+
+Symptôme : le fichier apparaît bien dans `inbox/`, la description est
+correcte, mais le JSON contient `"amount":0`.
+
+```json
+{"amount":0,"date":"2026-09-09","description":"Bowling"}
+```
+
+Cause : la variable du montant était **vide** au moment de construire le
+dictionnaire. Raccourcis remplit alors le champ Nombre avec 0. Ça arrive
+typiquement quand le raccourci est déclenché par l'automatisation
+**Transaction** et que la variable du montant n'est pas celle qu'on croit
+— ou que le déclencheur ne la fournit pas du tout.
+
+L'app importe quand même ces entrées et les affiche avec un badge
+**« à compléter »** : la description, la plus difficile à retrouver après
+coup, n'est pas perdue. Touche l'entrée pour saisir le montant.
+
+### Découvrir ce que le déclencheur fournit réellement
+
+Je ne peux pas te dire quelles variables expose l'automatisation
+Transaction sur ta version d'iOS — je n'ai pas d'iPhone. Mais tu peux le
+lui faire dire.
+
+Dans ton automatisation, remplace **temporairement** la valeur de la clé
+`description` du dictionnaire par la variable brute du déclencheur (celle
+qui apparaît en haut du sélecteur de variables, souvent nommée
+« Transaction » ou « Entrée du raccourci »). Laisse tout le reste tel quel.
+
+Paie quelque chose. Va lire le fichier créé dans `inbox/` : le champ
+`description` contient alors le contenu exact de la variable. Tu sauras
+si le montant s'y trouve, sous quel nom et sous quelle forme.
+
+Ensuite, remets la vraie description et branche le montant sur la bonne
+variable.
+
+### Si le déclencheur ne fournit aucun montant
+
+Deux issues :
+
+- **Accepter le mode « à compléter »** : l'automatisation enregistre
+  chaque paiement avec sa date, tu renseignes montant et description dans
+  l'app le soir même. Tu ne rates aucune dépense, et le relevé bancaire
+  te donne les montants.
+- **Revenir au raccourci manuel** : deux tapes, mais montant et
+  description saisis sur le moment.
+
 ## Peut-on l'enchaîner à Apple Pay ?
 
-L'automatisation **Transaction** peut déclencher ce raccourci sans que tu
-touches à rien — si elle existe sur ta version d'iOS et fournit le
-montant. Je ne sais toujours pas si c'est le cas chez toi ; la démarche
-pour vérifier est dans `RACCOURCI-IOS.md`, section « Variante B ».
+Oui : l'automatisation **Transaction** déclenche bien ce raccourci sans
+que tu touches à rien, fichier créé dans `inbox/` à l'appui.
+
+⚠️ **Une automatisation s'exécute en arrière-plan.** Les actions qui
+demandent quelque chose à l'utilisateur — « Demander une entrée »,
+« Choisir dans le menu », « Afficher une alerte » — n'ont personne pour
+répondre. Selon la version d'iOS, elles bloquent l'exécution ou sont
+purement ignorées. Une automatisation ne doit contenir **que des actions
+non interactives**.
+
+C'est pour ça que la description ne peut pas être demandée au moment du
+paiement dans ce mode : soit tu la laisses vide et tu la renseignes dans
+l'app, soit tu utilises le raccourci manuel.

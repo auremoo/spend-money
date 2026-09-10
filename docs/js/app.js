@@ -4,7 +4,7 @@
 // Les données vivent dans un dépôt GitHub privé ; cette page est
 // entièrement statique (GitHub Pages), aucun serveur intermédiaire.
 
-import { Store, todayISO } from './store.js';
+import { Store, todayISO, parseAmount } from './store.js';
 import { b64ToUtf8 } from './crypto.js';
 
 const CFG_KEY = 'spend-money.config';
@@ -243,8 +243,8 @@ function render() {
       body.append(desc, sub);
 
       const amount = document.createElement('span');
-      amount.className = 'item-amount';
-      amount.textContent = money.format(item.amount);
+      amount.className = 'item-amount' + (item.amount ? '' : ' todo');
+      amount.textContent = item.amount ? money.format(item.amount) : 'à compléter';
 
       btn.append(avatar(item), body, amount);
       li.appendChild(btn);
@@ -254,8 +254,6 @@ function render() {
 }
 
 // ═════════════════════════════════════════════════ feuille ajout ═══
-const parseAmount = (v) => Number(String(v).replace(',', '.').replace(/[^\d.]/g, ''));
-
 function openEntry(item = null) {
   editing = item;
   $('sheet-title').textContent = item ? 'Modifier la dépense' : 'Nouvelle dépense';
@@ -416,13 +414,14 @@ async function connect(cfg, { silent = false } = {}) {
     const info = await store.gh.check();
     await store.load();
     const flushed = await store.flushPending();
-    const drained = await store.drainInbox().catch(() => 0);
-    if (drained) render();
+    const inbox = await store.drainInbox().catch(() => ({ added: 0, skipped: 0 }));
+    if (inbox.added) render();
     refreshSync();
     $('conn-line').textContent = `${info.repoFullName} · ${info.login}${cfg.passphrase ? ' · chiffré' : ''}`;
     setStatus('Connecté.', 'ok');
     if (flushed) toast(`${flushed} dépense(s) en attente synchronisée(s).`);
-    else if (drained) toast(`${drained} dépense(s) reçue(s) du raccourci.`);
+    else if (inbox.added) toast(`${inbox.added} dépense(s) reçue(s) du raccourci.`);
+    else if (inbox.skipped) toast(`${inbox.skipped} fichier(s) illisible(s) dans inbox/, laissés en place.`);
     render();
     return true;
   } catch (err) {
